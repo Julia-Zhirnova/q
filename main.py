@@ -230,8 +230,9 @@ class PartnersPage(QWidget):
             }
             QListWidget::item {
                 border: 1px solid #ddd;
-                padding: 10px;
+                padding: 14px;  /* Увеличенный padding */
                 margin: 5px;
+                min-height: 140px;  /* Увеличена минимальная высота */
             }
             QListWidget::item:selected {
                 background-color: #f0f0f0;
@@ -239,12 +240,10 @@ class PartnersPage(QWidget):
         """)
         self.list_view.itemClicked.connect(self.on_item_clicked)
         layout.addWidget(self.list_view)
-        
         add_button = QPushButton("Добавить")
         add_button.setStyleSheet("background-color: #67BA80;")
         add_button.clicked.connect(self.add_partner)
         layout.addWidget(add_button)
-        
         self.setLayout(layout)
         self.load_partners()
 
@@ -288,24 +287,15 @@ class PartnersPage(QWidget):
                 label = QLabel()
                 label.setText(html)
                 label.setContentsMargins(0, 0, 0, 0)
-                label.setWordWrap(True)
                 label.setStyleSheet("background-color: transparent;")
-                label.setOpenExternalLinks(True)
-                
-                # Автоматический расчет размера
+                label.setWordWrap(True)
+                label.setTextFormat(Qt.RichText)  # Явно указываем формат
                 label.adjustSize()
-                item.setSizeHint(label.sizeHint())
+                item.setSizeHint(QSize(label.width(), label.height() + 20))
                 item.setData(Qt.UserRole, inn)
-                
                 self.list_view.addItem(item)
                 self.list_view.setItemWidget(item, label)
                 label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-
-                label.setTextFormat(Qt.RichText)  # Включить поддержку Rich Text
-                label.setWordWrap(True)  # Включить перенос текста
-                label.setFixedWidth(self.list_view.viewport().width() - 20)  # Ширина под контейнер
-                print(f"Partner data: {partner}")  # Временно для проверки данных
-
         except sqlite3.Error as e:
             QMessageBox.critical(None, "Ошибка", f"Не удалось загрузить список партнеров: {e}", QMessageBox.Ok)
 
@@ -315,28 +305,27 @@ class PartnersPage(QWidget):
         tip = partner[1]
         name = partner[2]
         total_quantity = partner[3] if partner[3] else 0
-        telefon = partner[4] if partner[4] else "Телефон не указан"  # Заглушка для телефона
-        rejting = partner[5] if partner[5] is not None else 0  # Заглушка для рейтинга
+        telefon = partner[4].strip() if partner[4] else "Телефон не указан"
+        rejting = partner[5]  # Берем напрямую из базы
         discount = self.calculate_discount(total_quantity)
-        director = f"{partner[6]} {partner[7]} {partner[8]}".strip() or "Директор не указан"
+        director = f"{partner[6]} {partner[7]} {partner[8]}".strip() or "Директор не указан"      
         
+
         html = f"""
         <div style='font-size: 14pt;'>
             <table width='100%'>
                 <tr>
-                    <td style='padding-right: 10px;'>
-                        <b>{tip}</b> | {name}
-                    </td>
-                    <td align='right'>
-                        <span style='color:#333;'>Скидка: {discount}%</span>
+                    <td style='width: 70%;'><b>{tip}</b> | {name}</td>
+                    <td style='width: 30%; text-align: right;'>
+                        <span style='color:#333;'>{discount}%</span>
                     </td>
                 </tr>
             </table>
         </div>
-        <div style='font-size:10pt; color:#666; margin-top:8px;'>
+        <div style='font-size: 10pt; color:#666; margin-top: 8px; line-height: 1.4;'>
             <div>{director}</div>
             <div>Тел: {telefon}</div>
-            <div>Рейтинг: {rejting}</div>
+            <div>Рейтинг: {rejting}</div>            
         </div>
         """
         return inn, html
@@ -350,16 +339,6 @@ class PartnersPage(QWidget):
             return 10
         else:
             return 15
-
-    def on_item_clicked(self, item):
-        selected_inn = item.data(Qt.UserRole)  # Получаем INN партнера
-        if selected_inn:
-            self.parent.page_edit.load_partner_data(selected_inn)
-            self.parent.stacked_widget.setCurrentWidget(self.parent.page_edit)
-
-    def add_partner(self):
-        self.parent.stacked_widget.setCurrentWidget(self.parent.page_add)
-
 
 class EditPartnerPage(QWidget):
     def __init__(self, parent):
