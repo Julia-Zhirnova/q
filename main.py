@@ -360,14 +360,30 @@ class EditPartnerPage(QWidget):
         self.phone_input = QLineEdit()
         self.email_input = QLineEdit()
 
+        # Метки ошибок
+        self.error_labels = {
+            'phone': QLabel(""),
+            'email': QLabel(""),
+            'rating': QLabel("")
+        }
+        
+        # Настройка стилей ошибок
+        for label in self.error_labels.values():
+            label.setStyleSheet("color: red; font-size: 10pt;")
+            label.hide()
+        
+        # Форма с полями и метками ошибок
         form_layout.addRow("ИНН:", self.inn_input)
         form_layout.addRow("Наименование:", self.name_input)
         form_layout.addRow("Тип партнера:", self.type_combo)
         form_layout.addRow("Рейтинг:", self.rating_spin)
+        form_layout.addRow("", self.error_labels['rating'])
         form_layout.addRow("Адрес:", self.address_input)
         form_layout.addRow("ФИО директора:", self.director_input)
         form_layout.addRow("Телефон:", self.phone_input)
+        form_layout.addRow("", self.error_labels['phone'])
         form_layout.addRow("Email:", self.email_input)
+        form_layout.addRow("", self.error_labels['email'])
 
         layout.addLayout(form_layout)
 
@@ -383,7 +399,39 @@ class EditPartnerPage(QWidget):
 
         layout.addLayout(button_layout)
         self.setLayout(layout)
-
+    
+    def validate_input(self):
+        valid = True
+        
+        # Валидация рейтинга
+        rating = self.rating_spin.value()
+        if not (0 <= rating <= 10):
+            self.error_labels['rating'].setText("Рейтинг должен быть от 0 до 10")
+            self.error_labels['rating'].show()
+            valid = False
+        else:
+            self.error_labels['rating'].hide()
+            
+        # Валидация телефона
+        phone = self.phone_input.text()
+        if not re.match(r'^\+7 \d{3} \d{3} \d{2} \d{2}$', phone):
+            self.error_labels['phone'].setText("Формат: +7 XXX XXX XX XX")
+            self.error_labels['phone'].show()
+            valid = False
+        else:
+            self.error_labels['phone'].hide()
+            
+        # Валидация email
+        email = self.email_input.text()
+        if not re.match(r'.+@.+\..+', email):
+            self.error_labels['email'].setText("Неверный формат email")
+            self.error_labels['email'].show()
+            valid = False
+        else:
+            self.error_labels['email'].hide()
+            
+        return valid
+    
     def load_partner_data(self, inn):
         query = """
         SELECT 
@@ -424,6 +472,14 @@ class EditPartnerPage(QWidget):
             print(f"Ошибка при загрузке типов партнеров: {e}")
 
     def save_partner(self):
+         # Сброс ошибок
+        for label in self.error_labels.values():
+            label.hide()
+            
+        if not self.validate_input():
+            QMessageBox.warning(self, "Ошибка", "Проверьте правильность заполнения полей", QMessageBox.Ok)
+            return
+        
         inn = self.inn_input.text()
         name = self.name_input.text()
         type_id = self.type_combo.currentData()
@@ -466,30 +522,51 @@ class AddPartnerPage(QWidget):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
-
         layout = QVBoxLayout()
         form_layout = QFormLayout()
-
+        
+        # Поля ввода
         self.inn_input = QLineEdit()
         self.name_input = QLineEdit()
         self.type_combo = QComboBox()
         self.rating_spin = QSpinBox()
-        self.index_input = QLineEdit()  # Индекс
-        self.region_input = QLineEdit()  # Область
-        self.city_input = QLineEdit()  # Город
-        self.street_input = QLineEdit()  # Улица
-        self.house_input = QLineEdit()  # Дом
-        self.director_last_name_input = QLineEdit()  # Фамилия директора
-        self.director_first_name_input = QLineEdit()  # Имя директора
-        self.director_middle_name_input = QLineEdit()  # Отчество директора
+        self.index_input = QLineEdit()
+        self.region_input = QLineEdit()
+        self.city_input = QLineEdit()
+        self.street_input = QLineEdit()
+        self.house_input = QLineEdit()
+        self.director_last_name_input = QLineEdit()
+        self.director_first_name_input = QLineEdit()
+        self.director_middle_name_input = QLineEdit()
         self.phone_input = QLineEdit()
         self.email_input = QLineEdit()
-
+        
+        # Метки ошибок
+        self.error_labels = {
+            'inn': QLabel(""),
+            'index': QLabel(""),
+            'phone': QLabel(""),
+            'email': QLabel(""),
+            'rating': QLabel(""),
+            'name': QLabel(""),
+            'director': QLabel("")
+        }
+        
+        # Настройка стилей ошибок
+        for label in self.error_labels.values():
+            label.setStyleSheet("color: red; font-size: 10pt;")
+            label.hide()
+        
+        # Форма с полями и метками ошибок
         form_layout.addRow("ИНН:", self.inn_input)
+        form_layout.addRow("", self.error_labels['inn'])
         form_layout.addRow("Наименование:", self.name_input)
+        form_layout.addRow("", self.error_labels['name'])
         form_layout.addRow("Тип партнера:", self.type_combo)
         form_layout.addRow("Рейтинг:", self.rating_spin)
+        form_layout.addRow("", self.error_labels['rating'])
         form_layout.addRow("Индекс:", self.index_input)
+        form_layout.addRow("", self.error_labels['index'])
         form_layout.addRow("Область:", self.region_input)
         form_layout.addRow("Город:", self.city_input)
         form_layout.addRow("Улица:", self.street_input)
@@ -497,21 +574,95 @@ class AddPartnerPage(QWidget):
         form_layout.addRow("Фамилия директора:", self.director_last_name_input)
         form_layout.addRow("Имя директора:", self.director_first_name_input)
         form_layout.addRow("Отчество директора:", self.director_middle_name_input)
+        form_layout.addRow("", self.error_labels['director'])
         form_layout.addRow("Телефон:", self.phone_input)
+        form_layout.addRow("", self.error_labels['phone'])
         form_layout.addRow("Email:", self.email_input)
-
-        layout.addLayout(form_layout)
-
+        form_layout.addRow("", self.error_labels['email'])
+        
+        # Кнопки
         button_layout = QHBoxLayout()
         add_button = QPushButton("Добавить")
         add_button.setStyleSheet("background-color: #67BA80;")
         add_button.clicked.connect(self.add_partner)
         button_layout.addWidget(add_button)
-
+        
+        layout.addLayout(form_layout)
         layout.addLayout(button_layout)
         self.setLayout(layout)
-
         self.load_types()
+
+    def validate_input(self):
+        valid = True
+        
+        # Валидация ИНН
+        inn = self.inn_input.text()
+        if not inn.isdigit() or len(inn) != 12:
+            self.error_labels['inn'].setText("ИНН должен содержать ровно 12 цифр")
+            self.error_labels['inn'].show()
+            valid = False
+        else:
+            self.error_labels['inn'].hide()
+            
+        # Валидация наименования
+        name = self.name_input.text().strip()
+        if not name:
+            self.error_labels['name'].setText("Наименование не может быть пустым")
+            self.error_labels['name'].show()
+            valid = False
+        else:
+            self.error_labels['name'].hide()
+            
+        # Валидация рейтинга
+        rating = self.rating_spin.value()
+        if not (0 <= rating <= 10):
+            self.error_labels['rating'].setText("Рейтинг должен быть от 0 до 10")
+            self.error_labels['rating'].show()
+            valid = False
+        else:
+            self.error_labels['rating'].hide()
+            
+        # Валидация индекса
+        index = self.index_input.text()
+        if not index.isdigit() or len(index) != 6:
+            self.error_labels['index'].setText("Индекс должен содержать 6 цифр")
+            self.error_labels['index'].show()
+            valid = False
+        else:
+            self.error_labels['index'].hide()
+            
+        # Валидация телефона
+        phone = self.phone_input.text()
+        if not re.match(r'^\+7 \d{3} \d{3} \d{2} \d{2}$', phone):
+            self.error_labels['phone'].setText("Формат: +7 XXX XXX XX XX")
+            self.error_labels['phone'].show()
+            valid = False
+        else:
+            self.error_labels['phone'].hide()
+            
+        # Валидация email
+        email = self.email_input.text()
+        if not re.match(r'.+@.+\..+', email):
+            self.error_labels['email'].setText("Неверный формат email")
+            self.error_labels['email'].show()
+            valid = False
+        else:
+            self.error_labels['email'].hide()
+            
+        # Валидация ФИО директора
+        director_fields = [
+            self.director_last_name_input.text().strip(),
+            self.director_first_name_input.text().strip(),
+            self.director_middle_name_input.text().strip()
+        ]
+        if not all(director_fields):
+            self.error_labels['director'].setText("Заполните ФИО директора полностью")
+            self.error_labels['director'].show()
+            valid = False
+        else:
+            self.error_labels['director'].hide()
+            
+        return valid
 
     def load_types(self):
         query = "SELECT ID_Tip_partnera, Tip FROM Partners_type;"
@@ -524,6 +675,14 @@ class AddPartnerPage(QWidget):
             print(f"Ошибка при загрузке типов партнеров: {e}")
 
     def add_partner(self):
+        # Сброс ошибок
+        for label in self.error_labels.values():
+            label.hide()
+            
+        if not self.validate_input():
+            QMessageBox.warning(self, "Ошибка", "Проверьте правильность заполнения полей", QMessageBox.Ok)
+            return
+        
         inn = self.inn_input.text()
         name = self.name_input.text()
         type_id = self.type_combo.currentData()
