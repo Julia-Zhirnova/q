@@ -1,4 +1,5 @@
 import sys
+import re
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QListWidget,
     QLineEdit, QTextEdit, QFormLayout, QComboBox, QSpinBox, QMessageBox, QStackedWidget, QGridLayout, QFrame,
@@ -324,8 +325,9 @@ class PartnersPage(QWidget):
         </div>
         <div style='font-size: 10pt; color:#666; margin-top: 8px; line-height: 1.4;'>
             <div>{director}</div>
-            <div>Тел: {telefon}</div>
-            <div>Рейтинг: {rejting}</div>            
+            <div>{telefon}</div>
+            <div>Рейтинг: {rejting}</div>
+            <div></div>      
         </div>
         """
         return inn, html
