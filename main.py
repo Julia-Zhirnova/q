@@ -342,183 +342,7 @@ class PartnersPage(QWidget):
         else:
             return 15
 
-class EditPartnerPage(QWidget):
-    def __init__(self, parent):
-        super().__init__()
-        self.parent = parent
-        self.inn = None
-
-        layout = QVBoxLayout()
-        form_layout = QFormLayout()
-
-        self.inn_input = QLineEdit()
-        self.name_input = QLineEdit()
-        self.type_combo = QComboBox()
-        self.rating_spin = QSpinBox()
-        self.address_input = QLineEdit()
-        self.director_input = QLineEdit()
-        self.phone_input = QLineEdit()
-        self.email_input = QLineEdit()
-
-        # Метки ошибок
-        self.error_labels = {
-            'phone': QLabel(""),
-            'email': QLabel(""),
-            'rating': QLabel("")
-        }
-        
-        # Настройка стилей ошибок
-        for label in self.error_labels.values():
-            label.setStyleSheet("color: red; font-size: 10pt;")
-            label.hide()
-        
-        # Форма с полями и метками ошибок
-        form_layout.addRow("ИНН:", self.inn_input)
-        form_layout.addRow("Наименование:", self.name_input)
-        form_layout.addRow("Тип партнера:", self.type_combo)
-        form_layout.addRow("Рейтинг:", self.rating_spin)
-        form_layout.addRow("", self.error_labels['rating'])
-        form_layout.addRow("Адрес:", self.address_input)
-        form_layout.addRow("ФИО директора:", self.director_input)
-        form_layout.addRow("Телефон:", self.phone_input)
-        form_layout.addRow("", self.error_labels['phone'])
-        form_layout.addRow("Email:", self.email_input)
-        form_layout.addRow("", self.error_labels['email'])
-
-        layout.addLayout(form_layout)
-
-        button_layout = QHBoxLayout()
-        save_button = QPushButton("Сохранить")
-        save_button.setStyleSheet("background-color: #67BA80;")
-        save_button.clicked.connect(self.save_partner)
-        history_button = QPushButton("История реализации")
-        history_button.setStyleSheet("background-color: #67BA80;")
-        history_button.clicked.connect(self.show_sales_history)
-        button_layout.addWidget(save_button)
-        button_layout.addWidget(history_button)
-
-        layout.addLayout(button_layout)
-        self.setLayout(layout)
-    
-    def validate_input(self):
-        valid = True
-        
-        # Валидация рейтинга
-        rating = self.rating_spin.value()
-        if not (0 <= rating <= 10):
-            self.error_labels['rating'].setText("Рейтинг должен быть от 0 до 10")
-            self.error_labels['rating'].show()
-            valid = False
-        else:
-            self.error_labels['rating'].hide()
-            
-        # Валидация телефона
-        phone = self.phone_input.text()
-        if not re.match(r'^\+7 \d{3} \d{3} \d{2} \d{2}$', phone):
-            self.error_labels['phone'].setText("Формат: +7 XXX XXX XX XX")
-            self.error_labels['phone'].show()
-            valid = False
-        else:
-            self.error_labels['phone'].hide()
-            
-        # Валидация email
-        email = self.email_input.text()
-        if not re.match(r'.+@.+\..+', email):
-            self.error_labels['email'].setText("Неверный формат email")
-            self.error_labels['email'].show()
-            valid = False
-        else:
-            self.error_labels['email'].hide()
-            
-        return valid
-    
-    def load_partner_data(self, inn):
-        query = """
-        SELECT 
-            ID_INN, Naimenovanie_partnera, Tip_partnera_ID, Rejting, Telefon_partnera, Elektronnaya_pochta_partnera,
-            Indeks, Oblast, Gorod, Ulica, Dom, Familiya, Imya, Otchestvo
-        FROM 
-            Partners
-        WHERE ID_INN = ?;
-        """
-        try:
-            self.parent.cursor.execute(query, (inn,))
-            partner = self.parent.cursor.fetchone()
-            if partner:
-                self.inn = partner[0]
-                self.inn_input.setText(str(partner[0]))
-                self.name_input.setText(partner[1])
-                self.type_combo.clear()
-                self.load_types()
-                self.type_combo.setCurrentIndex(partner[2] - 1)
-                self.rating_spin.setValue(partner[3])
-                self.phone_input.setText(partner[4])
-                self.email_input.setText(partner[5])
-
-                # Заполняем дополнительные поля
-                self.address_input.setText(f"{partner[7]}, {partner[8]}, {partner[9]}, {partner[10]}")
-                self.director_input.setText(f"{partner[11]} {partner[12]} {partner[13]}")
-        except sqlite3.Error as e:
-            print(f"Ошибка при загрузке данных партнера: {e}")
-
-    def load_types(self):
-        query = "SELECT ID_Tip_partnera, Tip FROM Partners_type;"
-        try:
-            self.parent.cursor.execute(query)
-            types = self.parent.cursor.fetchall()
-            for type_id, type_name in types:
-                self.type_combo.addItem(type_name, type_id)
-        except sqlite3.Error as e:
-            print(f"Ошибка при загрузке типов партнеров: {e}")
-
-    def save_partner(self):
-         # Сброс ошибок
-        for label in self.error_labels.values():
-            label.hide()
-            
-        if not self.validate_input():
-            QMessageBox.warning(self, "Ошибка", "Проверьте правильность заполнения полей", QMessageBox.Ok)
-            return
-        
-        inn = self.inn_input.text()
-        name = self.name_input.text()
-        type_id = self.type_combo.currentData()
-        rating = self.rating_spin.value()
-        phone = self.phone_input.text()
-        email = self.email_input.text()
-
-        query = """
-        UPDATE Partners
-        SET 
-            Naimenovanie_partnera = ?, 
-            Tip_partnera_ID = ?, 
-            Rejting = ?, 
-            Telefon_partnera = ?, 
-            Elektronnaya_pochta_partnera = ?
-        WHERE ID_INN = ?;
-        """
-        try:
-            self.parent.cursor.execute(query, (name, type_id, rating, phone, email, inn))
-            self.parent.db_connection.commit()
-            QMessageBox.information(None, "Успешно", "Данные партнера обновлены.", QMessageBox.Ok)
-            self.parent.page_partners.list_view.clear()
-            self.parent.page_partners.load_partners()
-            self.parent.stacked_widget.setCurrentWidget(self.parent.page_partners)
-        except sqlite3.Error as e:
-            print(f"Ошибка при сохранении партнера: {e}")
-            QMessageBox.critical(None, "Ошибка", f"Не удалось сохранить данные партнера. Подробности: {e}", QMessageBox.Ok)
-
-    def show_sales_history(self):
-        if not self.inn:
-            QMessageBox.warning(None, "Предупреждение", "Выберите партнера для просмотра истории.", QMessageBox.Ok)
-            return
-
-        # Создаем новую страницу для истории продаж
-        self.sales_history_page = SalesHistoryPage(self.parent, self.inn)
-        self.parent.stacked_widget.addWidget(self.sales_history_page)
-        self.parent.stacked_widget.setCurrentWidget(self.sales_history_page)
-
-class AddPartnerPage(QWidget):
+class PartnerForm(QWidget):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
@@ -544,11 +368,11 @@ class AddPartnerPage(QWidget):
         # Метки ошибок
         self.error_labels = {
             'inn': QLabel(""),
+            'name': QLabel(""),
+            'rating': QLabel(""),
             'index': QLabel(""),
             'phone': QLabel(""),
             'email': QLabel(""),
-            'rating': QLabel(""),
-            'name': QLabel(""),
             'director': QLabel("")
         }
         
@@ -580,18 +404,22 @@ class AddPartnerPage(QWidget):
         form_layout.addRow("Email:", self.email_input)
         form_layout.addRow("", self.error_labels['email'])
         
-        # Кнопки
-        button_layout = QHBoxLayout()
-        add_button = QPushButton("Добавить")
-        add_button.setStyleSheet("background-color: #67BA80;")
-        add_button.clicked.connect(self.add_partner)
-        button_layout.addWidget(add_button)
-        
         layout.addLayout(form_layout)
-        layout.addLayout(button_layout)
         self.setLayout(layout)
+        
+        # Загрузка типов партнеров
         self.load_types()
-
+    
+    def load_types(self):
+        query = "SELECT ID_Tip_partnera, Tip FROM Partners_type;"
+        try:
+            self.parent.cursor.execute(query)
+            types = self.parent.cursor.fetchall()
+            for type_id, type_name in types:
+                self.type_combo.addItem(type_name, type_id)
+        except sqlite3.Error as e:
+            print(f"Ошибка при загрузке типов партнеров: {e}")
+    
     def validate_input(self):
         valid = True
         
@@ -664,16 +492,16 @@ class AddPartnerPage(QWidget):
             
         return valid
 
-    def load_types(self):
-        query = "SELECT ID_Tip_partnera, Tip FROM Partners_type;"
-        try:
-            self.parent.cursor.execute(query)
-            types = self.parent.cursor.fetchall()
-            for type_id, type_name in types:
-                self.type_combo.addItem(type_name, type_id)
-        except sqlite3.Error as e:
-            print(f"Ошибка при загрузке типов партнеров: {e}")
-
+class AddPartnerPage(PartnerForm):
+    def __init__(self, parent):
+        super().__init__(parent)
+        button_layout = QHBoxLayout()
+        add_button = QPushButton("Добавить")
+        add_button.setStyleSheet("background-color: #67BA80;")
+        add_button.clicked.connect(self.add_partner)
+        button_layout.addWidget(add_button)
+        self.layout().addLayout(button_layout)
+    
     def add_partner(self):
         # Сброс ошибок
         for label in self.error_labels.values():
@@ -682,7 +510,8 @@ class AddPartnerPage(QWidget):
         if not self.validate_input():
             QMessageBox.warning(self, "Ошибка", "Проверьте правильность заполнения полей", QMessageBox.Ok)
             return
-        
+            
+        # Собираем все данные из полей
         inn = self.inn_input.text()
         name = self.name_input.text()
         type_id = self.type_combo.currentData()
@@ -697,17 +526,19 @@ class AddPartnerPage(QWidget):
         middle_name = self.director_middle_name_input.text()
         phone = self.phone_input.text()
         email = self.email_input.text()
-
+        
         query = """
         INSERT INTO Partners (
-            ID_INN, Naimenovanie_partnera, Tip_partnera_ID, Rejting, Indeks, Oblast, Gorod, Ulica, Dom,
-            Familiya, Imya, Otchestvo, Telefon_partnera, Elektronnaya_pochta_partnera
+            ID_INN, Naimenovanie_partnera, Tip_partnera_ID, Rejting, Indeks, 
+            Oblast, Gorod, Ulica, Dom, Familiya, Imya, Otchestvo, 
+            Telefon_partnera, Elektronnaya_pochta_partnera
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         try:
             self.parent.cursor.execute(query, (
-                inn, name, type_id, rating, index, region, city, street, house,
-                last_name, first_name, middle_name, phone, email
+                inn, name, type_id, rating, index, region, city, 
+                street, house, last_name, first_name, middle_name, 
+                phone, email
             ))
             self.parent.db_connection.commit()
             QMessageBox.information(None, "Успешно", "Партнер успешно добавлен.", QMessageBox.Ok)
@@ -717,6 +548,128 @@ class AddPartnerPage(QWidget):
         except sqlite3.Error as e:
             print(f"Ошибка при добавлении партнера: {e}")
             QMessageBox.critical(None, "Ошибка", f"Не удалось добавить партнера. Подробности: {e}", QMessageBox.Ok)
+
+class EditPartnerPage(PartnerForm):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.inn = None
+        button_layout = QHBoxLayout()
+        save_button = QPushButton("Сохранить")
+        save_button.setStyleSheet("background-color: #67BA80;")
+        save_button.clicked.connect(self.save_partner)
+        history_button = QPushButton("История реализации")
+        history_button.setStyleSheet("background-color: #67BA80;")
+        history_button.clicked.connect(self.show_sales_history)
+        button_layout.addWidget(save_button)
+        button_layout.addWidget(history_button)
+        self.layout().addLayout(button_layout)
+    
+    def load_partner_data(self, inn):
+        query = """
+        SELECT 
+            ID_INN, Naimenovanie_partnera, Tip_partnera_ID, Rejting, Telefon_partnera, 
+            Elektronnaya_pochta_partnera, Indeks, Oblast, Gorod, Ulica, Dom, 
+            Familiya, Imya, Otchestvo
+        FROM 
+            Partners
+        WHERE ID_INN = ?;
+        """
+        try:
+            self.parent.cursor.execute(query, (inn,))
+            partner = self.parent.cursor.fetchone()
+            if partner:
+                self.inn = partner[0]
+                self.inn_input.setText(str(partner[0]))
+                self.name_input.setText(partner[1])
+                self.type_combo.setCurrentIndex(partner[2] - 1)
+                self.rating_spin.setValue(partner[3])
+                self.phone_input.setText(partner[4])
+                self.email_input.setText(partner[5])
+                
+                # Заполнение адресных полей
+                self.index_input.setText(str(partner[6]))  # Индекс
+                self.region_input.setText(partner[7])      # Область
+                self.city_input.setText(partner[8])       # Город
+                self.street_input.setText(partner[9])     # Улица
+                self.house_input.setText(partner[10])     # Дом
+                
+                # Заполнение ФИО директора
+                self.director_last_name_input.setText(partner[11])
+                self.director_first_name_input.setText(partner[12])
+                self.director_middle_name_input.setText(partner[13])
+        except sqlite3.Error as e:
+            print(f"Ошибка при загрузке данных партнера: {e}")
+    
+    def save_partner(self):
+        # Сброс ошибок
+        for label in self.error_labels.values():
+            label.hide()
+            
+        if not self.validate_input():
+            QMessageBox.warning(self, "Ошибка", "Проверьте правильность заполнения полей", QMessageBox.Ok)
+            return
+            
+        # Собираем все данные из полей
+        inn = self.inn_input.text()
+        name = self.name_input.text()
+        type_id = self.type_combo.currentData()
+        rating = self.rating_spin.value()
+        index = self.index_input.text()
+        region = self.region_input.text()
+        city = self.city_input.text()
+        street = self.street_input.text()
+        house = self.house_input.text()
+        last_name = self.director_last_name_input.text()
+        first_name = self.director_first_name_input.text()
+        middle_name = self.director_middle_name_input.text()
+        phone = self.phone_input.text()
+        email = self.email_input.text()
+        
+        query = """
+        UPDATE Partners
+        SET 
+            Naimenovanie_partnera = ?, 
+            Tip_partnera_ID = ?, 
+            Rejting = ?, 
+            Telefon_partnera = ?, 
+            Elektronnaya_pochta_partnera = ?,
+            Indeks = ?, 
+            Oblast = ?, 
+            Gorod = ?, 
+            Ulica = ?, 
+            Dom = ?,
+            Familiya = ?, 
+            Imya = ?, 
+            Otchestvo = ?
+        WHERE ID_INN = ?;
+        """
+        try:
+            self.parent.cursor.execute(query, (
+                name, type_id, rating, phone, email,
+                index, region, city, street, house,
+                last_name, first_name, middle_name,
+                inn
+            ))
+            self.parent.db_connection.commit()
+            QMessageBox.information(None, "Успешно", "Данные партнера обновлены.", QMessageBox.Ok)
+            self.parent.page_partners.list_view.clear()
+            self.parent.page_partners.load_partners()
+            self.parent.stacked_widget.setCurrentWidget(self.parent.page_partners)
+        except sqlite3.Error as e:
+            print(f"Ошибка при сохранении партнера: {e}")
+            QMessageBox.critical(None, "Ошибка", f"Не удалось сохранить данные партнера. Подробности: {e}", QMessageBox.Ok)
+    
+    def show_sales_history(self):
+        if not self.inn:
+            QMessageBox.warning(None, "Предупреждение", "Выберите партнера для просмотра истории.", QMessageBox.Ok)
+            return
+        
+        # Создаем новую страницу для истории продаж
+        sales_history_page = SalesHistoryPage(self.parent, self.inn)  # Создаем экземпляр класса
+        self.parent.stacked_widget.addWidget(sales_history_page)  # Добавляем страницу в стек
+        self.parent.stacked_widget.setCurrentWidget(sales_history_page)  # Переключаемся на новую страницу
+
+        
 
 
 class SalesHistoryPage(QWidget):
